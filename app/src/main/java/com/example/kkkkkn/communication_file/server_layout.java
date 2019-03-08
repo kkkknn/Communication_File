@@ -5,6 +5,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
@@ -31,6 +32,7 @@ import java.util.Enumeration;
 public class server_layout extends AppCompatActivity {
     /*变量定义*/
     private Switch switch_flag;
+    private String filepath=Environment.getExternalStorageDirectory()+"/test.txt";
     private TextView server_ip;
     private Context mContext;
     public final String TAG="服务器端";
@@ -53,7 +55,7 @@ public class server_layout extends AppCompatActivity {
                     //开始写入输入的输出流到本地文件
                     try {
                         //创建本地文件
-                        File receive_file=new File("asd.txt");
+                        File receive_file=new File(filepath);
                         if(receive_file.exists()){
                             Log.i(TAG, "receive_file: 文件已存在！");
                         }else{
@@ -106,7 +108,7 @@ public class server_layout extends AppCompatActivity {
 
         //初始化view
         Initview();
-
+        Log.i(TAG, "onCreate: "+filepath);
         //显示当前设备连接的wifi IP
         String ip=ShowIp();
         if(ip!=null){

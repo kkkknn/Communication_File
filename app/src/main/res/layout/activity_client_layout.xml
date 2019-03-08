@@ -8,36 +8,32 @@
     android:orientation="vertical"
     tools:context=".client_layout">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/textView2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:layout_weight="5"
+        android:text="您当前所在的是客户端"
+        android:textAlignment="center"
+        android:textColor="@android:color/background_dark"
+        android:textSize="30sp" />
 
-
-        <TextView
-            android:id="@+id/textView2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="9"
-            android:text="您当前所在的是客户端"
-            android:textAlignment="center"
-            android:textSize="30sp" />
-
-        <Switch
-            android:id="@+id/switch_client"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:showText="true"
-            android:text="连接状态"
-            android:textOff="已关闭"
-            android:textOn="已开启"
-            android:textSize="30sp" />
-    </LinearLayout>
+    <Switch
+        android:id="@+id/switch_client"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="5"
+        android:showText="true"
+        android:text="连接状态"
+        android:textAlignment="viewStart"
+        android:textOff="已关闭"
+        android:textOn="已开启"
+        android:textSize="30sp" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="100dp"
         android:orientation="horizontal">
 
         <TextView
@@ -46,16 +42,16 @@
             android:layout_height="match_parent"
             android:layout_weight="5"
             android:text="您的ip是"
-            android:textAlignment="center"
+            android:textAlignment="textStart"
             android:textSize="30sp" />
 
         <TextView
-            android:id="@+id/textView4"
+            android:id="@+id/client_ip"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:layout_weight="5"
             android:text="0.0.0.0"
-            android:textAlignment="center"
+            android:textAlignment="viewStart"
             android:textSize="30sp" />
 
 
@@ -72,7 +68,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="8"
             android:text="请输入对方的IP"
-            android:textAlignment="center"
+            android:textAlignment="textStart"
             android:textSize="30sp" />
 
         <EditText
@@ -83,21 +79,17 @@
             android:ems="11"
             android:inputType="text"
             android:text="0.0.0.0"
-            android:textAlignment="center"
+            android:textAlignment="viewStart"
             android:textSize="30sp" />
 
     </LinearLayout>
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
 
     <Button
-        android:id="@+id/button"
+        android:id="@+id/send_start"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:text="文件测试"
         android:textSize="30sp" />
-    </LinearLayout>
+
 </LinearLayout>

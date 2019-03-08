@@ -5,15 +5,21 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.Switch;
+import android.widget.TextView;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,8 +29,14 @@ import java.net.Socket;
 public class client_layout extends AppCompatActivity {
     //变量声明
     private Context mContext;
+    private String filepath=Environment.getExternalStorageDirectory()+"/test.txt";
+    private int read_count;
+    private byte[] send_byte=new byte[2014];
+    private TextView client_ip;
     private EditText editText_ip;
     private String server_ip;
+    private Button send_start;
+    private boolean connect_flag=false;
     public final String TAG="客户端";
     private Switch client_switch;
     private Socket client_socket;
@@ -36,19 +48,28 @@ public class client_layout extends AppCompatActivity {
             switch(msg.what){
                 case 200:
                     //连接成功
-                    Log.e(TAG, "client_handler: 连接成功a");
-                    //从文件读取到文件流
-                    try {
-                        file_in=openFileInput("aa.text");
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                    }
+                    Log.e(TAG, "client_handler: 连接成功");
+                    connect_flag=true;
                     break;
                 case 500:
                     //连接失败
                     Log.e(TAG, "client_handler: 连接失败");
                     break;
             }
+        }
+    };
+    private Thread send_thread=new Thread(){
+        @Override
+        public void run() {
+            try {
+                while((read_count = file_in.read(send_byte)) > 0){
+                    outputStream.write(send_byte,0,read_count);
+                    outputStream.flush();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
         }
     };
     private Thread clien_connection=new Thread(){
@@ -79,19 +100,21 @@ public class client_layout extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_client_layout);
-
         //初始化界面
         InitView();
 
         //显示本机IP地址
-        ShowIp();
+        String ip=ShowIp();
+        client_ip.setText(ip);
     }
 
     //初始化界面+控件绑定
     private void InitView(){
         mContext=getApplicationContext();
+        send_start=findViewById(R.id.send_start);
+        client_ip=findViewById(R.id.client_ip);
         editText_ip=findViewById(R.id.server_ip);
-        client_switch=findViewById(R.id.server_switch);
+        client_switch=findViewById(R.id.switch_client);
         //switch控件的监听
         client_switch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -116,8 +139,29 @@ public class client_layout extends AppCompatActivity {
                             client_socket.close();  //关闭socket
                             client_socket = null;
                         }
+                        connect_flag=false;
                     } catch (IOException e) {
                         e.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        //按钮点击事件的监听
+        send_start.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(connect_flag){
+                    //从文件读取到文件流
+                    try {
+                        File send_file=new File(filepath);
+                        file_in=new FileInputStream(send_file);
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                    if(file_in!=null){
+                        //开启发送线程
+                        send_thread.start();
                     }
                 }
             }
