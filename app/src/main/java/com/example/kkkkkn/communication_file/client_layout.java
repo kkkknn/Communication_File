@@ -18,12 +18,15 @@ import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.TextView;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.net.Socket;
 
 public class client_layout extends AppCompatActivity {
@@ -42,6 +45,7 @@ public class client_layout extends AppCompatActivity {
     private Socket client_socket;
     private OutputStream outputStream;
     private InputStream inputStream,file_in;
+    private Thread send_thread,client_connection;
     private Handler client_handler=new Handler(){
         @Override
         public void handleMessage(Message msg) {
@@ -55,47 +59,43 @@ public class client_layout extends AppCompatActivity {
                     //连接失败
                     Log.e(TAG, "client_handler: 连接失败");
                     break;
-            }
-        }
-    };
-    private Thread send_thread=new Thread(){
-        @Override
-        public void run() {
-            try {
-                while((read_count = file_in.read(send_byte)) > 0){
-                    outputStream.write(send_byte,0,read_count);
-                    outputStream.flush();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+                case 204:
+                    //开始发送文件线程
+                    //确认socket已经连接
+                    if(client_socket.isConnected()){
+                        //开启线程
+                        send_thread=new Thread(){
+                            @Override
+                            public void run() {
+                                try {
+                                    Log.i(TAG, "file: 文件开始发送!");
+                                    while((read_count = file_in.read(send_byte)) > 0) {
+                                        outputStream.write(send_byte, 0, read_count);
+                                    }
+                                    //发送结尾标志位
+                                    /*PrintWriter printWriter=new PrintWriter(outputStream);
+                                    printWriter.write("\n");
+                                    printWriter.flush();
+                                    printWriter.close();*/
+                                    outputStream.flush();
+                                    //结束输出流，让服务端接收到数据
+                                    client_socket.shutdownOutput();
+                                    Log.i(TAG, "file: 文件发送成功!");
+                                    //在页面上输出发送用时
 
-        }
-    };
-    private Thread clien_connection=new Thread(){
-        @Override
-        public void run() {
-            try {
-                //指定ip地址和端口号
-                client_socket = new Socket(server_ip,6666);
-                if(client_socket != null){
-                    //获取输出流、输入流
-                    outputStream = client_socket.getOutputStream();
-                    inputStream = client_socket.getInputStream();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                Message msg=client_handler.obtainMessage();
-                msg.what=500;
-                client_handler.sendMessage(msg);
-                return;
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        };
+                        send_thread.start();
+                    }
+                    break;
             }
-            Log.i(TAG,"Thread  clien_connection:连接成功");
-            Message msg=client_handler.obtainMessage();
-            msg.what=200;
-            client_handler.sendMessage(msg);
         }
     };
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -122,8 +122,33 @@ public class client_layout extends AppCompatActivity {
                 if(isChecked){
                     //获取输入的IP，开始连接服务器
                     server_ip=editText_ip.getText().toString();
+                    //开始连接线程
+                    client_connection=new Thread(){
+                        @Override
+                        public void run() {
+                            try {
+                                //指定ip地址和端口号
+                                client_socket = new Socket(server_ip,6666);
+                                if(client_socket != null){
+                                    //获取输出流、输入流
+                                    outputStream = client_socket.getOutputStream();
+                                    inputStream = client_socket.getInputStream();
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                Message msg=client_handler.obtainMessage();
+                                msg.what=500;
+                                client_handler.sendMessage(msg);
+                                return;
+                            }
+                            Log.i(TAG,"Thread  client_connection:连接成功");
+                            Message msg=client_handler.obtainMessage();
+                            msg.what=200;
+                            client_handler.sendMessage(msg);
+                        }
+                    };
                     //连接要在线程中进行
-                    clien_connection.start();
+                    client_connection.start();
                 }else{
                     //断开和服务器的连接
                     try {
@@ -152,16 +177,24 @@ public class client_layout extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if(connect_flag){
-                    //从文件读取到文件流
-                    try {
-                        File send_file=new File(filepath);
-                        file_in=new FileInputStream(send_file);
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                    if(file_in!=null){
-                        //开启发送线程
-                        send_thread.start();
+                    if(send_thread!=null&&send_thread.isAlive()) {
+                        Log.i(TAG, "onClick: 文件尚未传输完成，请耐心等待。");
+                    }else{
+                        //从文件读取到文件流
+                        try {
+                            File send_file=new File(filepath);
+                            file_in=new FileInputStream(send_file);
+                        } catch (FileNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                        if(file_in!=null){
+                            //通知handler开启发送线程
+                            Message file_start=client_handler.obtainMessage();
+                            file_start.what=204;
+                            client_handler.sendMessage(file_start);
+                        }else{
+                            Log.i(TAG, "onClick: 未找到文件路径，请确认路径是否正确");
+                        }
                     }
                 }
             }

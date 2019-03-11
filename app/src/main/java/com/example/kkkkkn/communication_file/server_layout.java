@@ -37,11 +37,12 @@ public class server_layout extends AppCompatActivity {
     private Context mContext;
     public final String TAG="服务器端";
     private boolean server_Thread_flag;
-    private Socket sercer_socket;
-    private Thread  sercer_thread;
+    private Socket server_socket;
+    private Thread  server_thread,receive_thread;
     private ServerSocket mServerSocket;
     private byte[] receive_buffer=new byte[1024];
     private int receive_count;
+    private boolean read_flag=false;
     //输入输出流
     private OutputStream outputStream,file_out;
     private InputStream inputStream;
@@ -71,36 +72,45 @@ public class server_layout extends AppCompatActivity {
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
                     }
-                    //开启接收写入线程
+                    server_Thread_flag=true;
+                    receive_thread=new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            while(server_Thread_flag){
+                                //数据存在buffer中，count为读取到的数据长度。
+                                try {
+                                    //读取到就循环读取
+                                    while((receive_count=inputStream.read(receive_buffer))>0){
+
+                                        if(!read_flag){
+                                            Log.i(TAG, "receive_thread: 开始文件传输！");
+                                            read_flag=true;
+                                        }
+                                        //保存数据到文件
+                                        file_out.write(receive_buffer,0,receive_count);
+                                        file_out.flush();
+                                    }
+                                    if(read_flag){
+                                        Log.i(TAG, "receive_thread: 文件传输完成,写入完成！");
+                                        read_flag=false;
+                                    }
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    });
                     receive_thread.start();
                     break;
                 case 500:
                     //出错
                     Log.e(TAG, "handleMessage: 500:连接失败，出错" );
+                    server_Thread_flag=false;
                     break;
             }
         }
     };
-    //接收线程
-    private Thread receive_thread=new Thread(new Runnable() {
-        @Override
-        public void run() {
-            while(server_Thread_flag){
-                //数据存在buffer中，count为读取到的数据长度。
-                try {
-                    //读取到就循环读取
-                    receive_count=inputStream.read(receive_buffer);
-                    if(receive_count>0){
-                        file_out.write(receive_buffer,0,receive_count);
-                    }
-                    receive_count=0;
-                    //保存数据到文件
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    });
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -129,9 +139,11 @@ public class server_layout extends AppCompatActivity {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if(isChecked){
                     //开启服务和端口socket
+                    Log.i(TAG, "onCheckedChanged: 打开端口");
                     Open_socket();
                 }else{
                     //关闭服务和端口socket
+                    Log.i(TAG, "onCheckedChanged: 关闭端口");
                     Close_socket();
                 }
             }
@@ -142,23 +154,25 @@ public class server_layout extends AppCompatActivity {
         try {
             //开启端口
             mServerSocket = new ServerSocket(6666);
+            Log.i(TAG, "Open_socket: 端口开启成功，开启线程，等待客户端连接！");
             //开启线程，等待客户端的连接
-            sercer_thread=new Thread(new Runnable() {
+            server_thread=new Thread(new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        sercer_socket=mServerSocket.accept();
+                        server_socket=mServerSocket.accept();
                         //获取输入流
-                        inputStream = sercer_socket.getInputStream();
+                        inputStream = server_socket.getInputStream();
                         //获取输出流
-                        outputStream = sercer_socket.getOutputStream();
+                        outputStream = server_socket.getOutputStream();
                     } catch (IOException e) {
                         e.printStackTrace();
+                        return;
                     }
 
                     //通知handler连接成功，开始收发数据
                     Message msgs=mhandler.obtainMessage();
-                    if(sercer_socket!=null&&inputStream!=null&&outputStream!=null){
+                    if(server_socket!=null&&inputStream!=null&&outputStream!=null){
                         msgs.what=200;
                         server_Thread_flag=true;
                     }else{
@@ -168,7 +182,7 @@ public class server_layout extends AppCompatActivity {
                     mhandler.sendMessage(msgs);
                 }
             });
-            sercer_thread.start();
+            server_thread.start();
         } catch (IOException e) {
             e.printStackTrace();
             Log.e(TAG, "Open_socket: 服务器端口开启失败" );
@@ -179,6 +193,17 @@ public class server_layout extends AppCompatActivity {
         if(mServerSocket != null){
             try {
                 server_Thread_flag=false;
+                server_thread.interrupt();
+                //关闭输入输出流
+                if(outputStream!=null){
+                    outputStream.close();
+                }
+                if(file_out!=null){
+                    file_out.close();
+                }
+                if(inputStream!=null){
+                    inputStream.close();
+                }
                 mServerSocket.close();
             } catch (IOException e) {
                 e.printStackTrace();
