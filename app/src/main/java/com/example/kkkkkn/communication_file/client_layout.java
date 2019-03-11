@@ -34,8 +34,9 @@ public class client_layout extends AppCompatActivity {
     private Context mContext;
     private String filepath=Environment.getExternalStorageDirectory()+"/test.txt";
     private int read_count;
-    private byte[] send_byte=new byte[2014];
-    private TextView client_ip;
+    private byte[] send_byte=new byte[1024];
+    private Long start_time,run_time;
+    private TextView client_ip,client_msg;
     private EditText editText_ip;
     private String server_ip;
     private Button send_start;
@@ -53,11 +54,13 @@ public class client_layout extends AppCompatActivity {
                 case 200:
                     //连接成功
                     Log.e(TAG, "client_handler: 连接成功");
+                    client_msg.append("连接成功\n");
                     connect_flag=true;
                     break;
                 case 500:
                     //连接失败
                     Log.e(TAG, "client_handler: 连接失败");
+                    client_msg.append("连接失败\n");
                     break;
                 case 204:
                     //开始发送文件线程
@@ -69,20 +72,27 @@ public class client_layout extends AppCompatActivity {
                             public void run() {
                                 try {
                                     Log.i(TAG, "file: 文件开始发送!");
+                                    start_time = System.currentTimeMillis();  //開始時間
+                                    Message message=client_handler.obtainMessage();
+                                    message.what=600;
+                                    message.obj="文件开始发送!\n";
+                                    client_handler.sendMessage(message);
                                     while((read_count = file_in.read(send_byte)) > 0) {
                                         outputStream.write(send_byte, 0, read_count);
                                     }
-                                    //发送结尾标志位
-                                    /*PrintWriter printWriter=new PrintWriter(outputStream);
-                                    printWriter.write("\n");
-                                    printWriter.flush();
-                                    printWriter.close();*/
                                     outputStream.flush();
                                     //结束输出流，让服务端接收到数据
-                                    client_socket.shutdownOutput();
                                     Log.i(TAG, "file: 文件发送成功!");
+                                    run_time=System.currentTimeMillis()-start_time;
+                                    Message messageend=client_handler.obtainMessage();
+                                    messageend.what=600;
+                                    messageend.obj="文件发送成功!\n";
+                                    client_handler.sendMessage(messageend);
                                     //在页面上输出发送用时
-
+                                    Message messageruntime=client_handler.obtainMessage();
+                                    messageruntime.what=600;
+                                    messageruntime.obj="用时"+run_time+"ms\n";
+                                    client_handler.sendMessage(messageruntime);
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
@@ -90,6 +100,10 @@ public class client_layout extends AppCompatActivity {
                         };
                         send_thread.start();
                     }
+                    break;
+                case 600:
+                    String text=(String)msg.obj;
+                    client_msg.append(text);
                     break;
             }
         }
@@ -111,6 +125,7 @@ public class client_layout extends AppCompatActivity {
     //初始化界面+控件绑定
     private void InitView(){
         mContext=getApplicationContext();
+        client_msg=findViewById(R.id.client_msg);
         send_start=findViewById(R.id.send_start);
         client_ip=findViewById(R.id.client_ip);
         editText_ip=findViewById(R.id.server_ip);

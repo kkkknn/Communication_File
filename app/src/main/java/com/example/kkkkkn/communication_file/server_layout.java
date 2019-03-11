@@ -33,15 +33,16 @@ public class server_layout extends AppCompatActivity {
     /*变量定义*/
     private Switch switch_flag;
     private String filepath=Environment.getExternalStorageDirectory()+"/test.txt";
-    private TextView server_ip;
+    private TextView server_ip,server_msg;
     private Context mContext;
+    private Long start_time,run_time;
     public final String TAG="服务器端";
     private boolean server_Thread_flag;
     private Socket server_socket;
     private Thread  server_thread,receive_thread;
     private ServerSocket mServerSocket;
     private byte[] receive_buffer=new byte[1024];
-    private int receive_count;
+    private int receive_count,read_count,write_count;
     private boolean read_flag=false;
     //输入输出流
     private OutputStream outputStream,file_out;
@@ -53,6 +54,7 @@ public class server_layout extends AppCompatActivity {
                 case 200:
                     //连接成功
                     Log.i(TAG, "handleMessage: 200:连接成功，开启接收线程等待接收数据");
+                    server_msg.append("连接成功，开启接收线程等待接收数据\n");
                     //开始写入输入的输出流到本地文件
                     try {
                         //创建本地文件
@@ -79,21 +81,43 @@ public class server_layout extends AppCompatActivity {
                             while(server_Thread_flag){
                                 //数据存在buffer中，count为读取到的数据长度。
                                 try {
-                                    //读取到就循环读取
-                                    while((receive_count=inputStream.read(receive_buffer))>0){
-
-                                        if(!read_flag){
-                                            Log.i(TAG, "receive_thread: 开始文件传输！");
+                                    while((read_count=inputStream.available())>0){
+                                       /* if(!read_flag){
+                                           // Log.i(TAG, "receive_thread: 开始文件传输！");
+                                            Message message=mhandler.obtainMessage();
+                                            message.what=600;
+                                            message.obj="开始文件传输\n";
+                                            mhandler.sendMessage(message);
+                                            start_time = System.currentTimeMillis();  //開始時間
                                             read_flag=true;
+                                        }*/
+                                        write_count=read_count;
+                                        while(write_count>0){
+                                            if(write_count<receive_buffer.length){
+                                                receive_count=inputStream.read(receive_buffer,0,write_count);
+                                                write_count=0;
+                                            }else{
+                                                receive_count=inputStream.read(receive_buffer,0,receive_buffer.length);
+                                                write_count=write_count-receive_buffer.length;
+                                            }
+                                            file_out.write(receive_buffer,0,receive_count);
+                                            file_out.flush();
                                         }
-                                        //保存数据到文件
-                                        file_out.write(receive_buffer,0,receive_count);
-                                        file_out.flush();
                                     }
-                                    if(read_flag){
-                                        Log.i(TAG, "receive_thread: 文件传输完成,写入完成！");
-                                        read_flag=false;
-                                    }
+                                  /*  if(read_flag) {
+                                       // Log.i(TAG, "receive_thread: 文件传输完成,写入完成！");
+                                        Message message=mhandler.obtainMessage();
+                                        message.what=600;
+                                        message.obj="文件传输完成,写入完成！\n";
+                                        mhandler.sendMessage(message);
+                                        //计算用时输出
+                                        run_time = System.currentTimeMillis()-start_time;  //開始時間
+                                        Message message2=mhandler.obtainMessage();
+                                        message2.what=600;
+                                        message2.obj="用时"+run_time+"ms\n";
+                                        mhandler.sendMessage(message2);
+                                        read_flag = false;
+                                    }*/
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
@@ -106,6 +130,10 @@ public class server_layout extends AppCompatActivity {
                     //出错
                     Log.e(TAG, "handleMessage: 500:连接失败，出错" );
                     server_Thread_flag=false;
+                    break;
+                case 600:
+                    String text=(String)msg.obj;
+                    server_msg.append(text);
                     break;
             }
         }
@@ -132,6 +160,7 @@ public class server_layout extends AppCompatActivity {
     //初始化界面控件+监听
     private void Initview(){
         mContext=getApplicationContext();
+        server_msg=findViewById(R.id.server_msg);
         server_ip=findViewById(R.id.server_ip);
         switch_flag=findViewById(R.id.server_switch);
         switch_flag.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
